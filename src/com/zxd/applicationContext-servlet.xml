@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:sec="http://www.springframework.org/schema/security" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:task="http://www.springframework.org/schema/task" 
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd  
+		http://www.springframework.org/schema/mvc 
+		http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd   
+		http://www.springframework.org/schema/context 
+		http://www.springframework.org/schema/context/spring-context-3.2.xsd
+		http://www.springframework.org/schema/security  
+		http://www.springframework.org/schema/security/spring-security-3.2.xsd
+		http://www.springframework.org/schema/task  
+		http://www.springframework.org/schema/task/spring-task-3.1.xsd ">
+
+	<!-- 注解驱动 -->
+	<mvc:annotation-driven>  
+        <mvc:message-converters>
+        	<!-- 中文编码 -->
+            <bean class="com.mmednet.common.util.UTF8StringHttpMessageConverter" />  
+        </mvc:message-converters>  
+    </mvc:annotation-driven> 
+    
+    <!-- 定时任务驱动 -->
+    <task:annotation-driven/>  
+    
+    <context:component-scan base-package="com.zxd.**.controller">
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+	
+	
+	<!-- 未登录的切入点 -->
+	<bean id="authenticationProcessingFilterEntryPoint" 
+			class="org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint">
+		<property name="loginFormUrl" value="/entrance/login.jsp?=4"></property>
+	</bean>
+	
+	<bean id="loginFilter" class="com.mmednet.project.board.security.CustomUsernamePasswordAuthenticationFilter">
+		<property name="rememberMeServices" ref="rememberMeServices" />
+		<property name="filterProcessesUrl" value="/j_spring_security_check" />
+		<property name="authenticationSuccessHandler">
+			<bean class="com.mmednet.project.board.security.CustomLoginHandler">
+				<!-- 登录成功后的默认URL -->
+				<property name="defaultTargetUrl" value="/admin/homepage"></property>
+			</bean>
+		</property>
+		<property name="authenticationFailureHandler">
+			<!-- 
+			org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler
+			 -->
+			<!-- 自定义登陆失败处理 -->
+			<bean class="com.mmednet.project.board.security.CustomLoginFailureHandler">
+				<!-- 登录失败后的默认URL 
+				<property name="defaultFailureUrl" value="/entrance/login.jsp?error=1"></property>
+				-->
+			</bean>
+		</property>
+		<property name="authenticationManager" ref="customAuthenticationManager"></property>
+	</bean>
+	
+	
+	<!-- 用户的密码加密或解密  -->
+	<bean id="md5Encoder" class="com.mmednet.project.board.util.MD5Encoder"></bean>
+	
+	<!-- 访问决策器, 决定某个用户具有的角色, 是否有足够的权限去访问某个资源 -->
+	<bean id="customAccessDescisionManager" class="com.mmednet.project.board.security.CustomAccessDescisionManager"/>
+	
+	<import resource="customContext.xml"/>
+	
+	<!-- 视图解析 -->
+	<bean class="org.springframework.web.servlet.view.UrlBasedViewResolver">
+		<!-- 返回的视图模型数据需要经过jstl来处理 -->
+		<property name="viewClass" value="org.springframework.web.servlet.view.JstlView" />
+		<property name="prefix" value="/WEB-INF/jsp/" />
+		<property name="suffix" value=".jsp" />
+	</bean>
+
+	<!-- 对静态资源文件的访问 不支持访问WEB-INF目录 -->
+	<mvc:default-servlet-handler />
+
+	<!-- 对静态资源文件的访问 支持访问WEB-INF目录 -->
+	<mvc:resources location="/static/" mapping="/static/**" />
+	
+	<bean id="multipartResolver"
+		class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<!--one of the properties available;the maximum file size in bytes -->
+		<property name="maxUploadSize" value="500000000" />
+	</bean>
+
+	<bean id="stringConverter" class="org.springframework.http.converter.StringHttpMessageConverter">
+		<property name="supportedMediaTypes">
+			<list>
+				<value>text/plain;charset=UTF-8</value>
+			</list>
+		</property>
+	</bean>
+
+	<!-- 输出对象转JSON支持 -->
+	<bean id="jsonConverter" class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter"></bean>
+	<bean
+		class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+		<property name="messageConverters">
+			<list>
+				<ref bean="stringConverter"/>
+				<ref bean="jsonConverter" />
+			</list>
+		</property>
+	</bean>
+	
+	<sec:global-method-security jsr250-annotations="enabled" secured-annotations="enabled" />
+</beans>
